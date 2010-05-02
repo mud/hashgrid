@@ -1,3 +1,11 @@
+/*  hashgrid (Prototype version)
+ *  http://github.com/mud/hashgrid
+ *  Takashi Okamoto, buzamoto.com
+ *
+ *  This is a port of hashgrid originally by Jon Gibbins using Prototype.
+ *
+ *--------------------------------------------------------------------------*/
+ 
 /**
  * hashgrid (jQuery version)
  * http://github.com/dotjay/hashgrid
@@ -29,7 +37,7 @@
  * You can call hashgrid from your own code, but it's loaded here by
  * default for convenience.
  */
-$(document).ready(function() {
+Event.observe(window, 'load', function() {
 
 	var grid = new hashgrid({
 		numberOfGrids: 2
@@ -71,31 +79,38 @@ var hashgrid = function(set) {
 	}
 
 	// Remove any conflicting overlay
-	if ($('#' + options.id).length > 0) {
-		$('#' + options.id).remove();
+	if ($$('#' + options.id).length > 0) {
+		$(options.id).remove();
 	}
 
 	// Create overlay, hidden before adding to DOM
-	var overlayEl = $('<div></div>');
-	overlayEl
-		.attr('id', options.id)
-		.css('display', 'none');
-	$("body").prepend(overlayEl);
-	var overlay = $('#' + options.id);
+	var overlayEl = new Element('div', { id: options.id });
+	overlayEl.setStyle({ display: 'none' });
+	if (document.body.childNodes.length > 0) {
+		document.body.insert({ top: overlayEl });
+	} else {
+		document.body.appendChild(overlayEl);
+	}
+	var overlay = $(options.id);
 
 	// Unless a custom z-index is set, ensure the overlay will be behind everything
-	if (overlay.css('z-index') == 'auto') overlay.css('z-index', overlayZBackground);
+	if (overlay.getStyle('z-index') == 'auto') overlay.setStyle({ zIndex: overlayZBackground });
 
 	// Override the default overlay height with the actual page height
-	var pageHeight = parseFloat($(document).height());
-	overlay.height(pageHeight);
+	// There wasn't a Prototype method to get page height, so I took this from jQuery's implementation of document.height()
+	var pageHeight = Math.max(
+		document.documentElement["clientHeight"],
+		document.body["scrollHeight"], document.documentElement["scrollHeight"],
+		document.body["offsetHeight"], document.documentElement["offsetHeight"]
+	);
+	overlay.setStyle({ height: pageHeight+'px' });
 
 	// Add the first grid line so that we can measure it
-	overlay.append('<div class="horiz first-line">');
+	overlay.appendChild(new Element('div', { 'class': 'horiz first-line' }));
 
 	// Calculate the number of grid lines needed
-	var overlayGridLines = overlay.children('.horiz'),
-		overlayGridLineHeight = parseFloat(overlayGridLines.css('height')) + parseFloat(overlayGridLines.css('border-bottom-width'));
+	var overlayGridLines = overlay.down('.horiz'),
+		overlayGridLineHeight = parseFloat(overlayGridLines.getStyle('height')) + parseFloat(overlayGridLines.getStyle('border-bottom-width'));
 
 	// Break on zero line height
 	if (overlayGridLineHeight <= 0) return true;
@@ -103,7 +118,7 @@ var hashgrid = function(set) {
 	// Add the remaining grid lines
 	var i, numGridLines = Math.floor(pageHeight / overlayGridLineHeight);
 	for (i = numGridLines - 1; i >= 1; i--) {
-		overlay.append('<div class="horiz"></div>');
+		overlay.appendChild(new Element('div', { 'class': 'horiz' }));
 	}
 
 	// Check for saved state
@@ -113,11 +128,11 @@ var hashgrid = function(set) {
 		state[2] = Number(state[2]);
 		if ((typeof state[2] == 'number') && !isNaN(state[2])) {
 			classNumber = state[2].toFixed(0);
-			overlay.addClass(options.classPrefix + classNumber);
+			overlay.addClassName(options.classPrefix + classNumber);
 		}
 		if (state[1] == 'F') {
 			overlayZState = 'F';
-			overlay.css('z-index', overlayZForeground);
+			overlay.setStyle({ zIndex: overlayZForeground });
 		}
 		if (state[0] == '1') {
 			overlayOn = true;
@@ -126,13 +141,12 @@ var hashgrid = function(set) {
 		}
 	}
 	else {
-		overlay.addClass(options.classPrefix + classNumber)
+		overlay.addClassName(options.classPrefix + classNumber)
 	}
-
+	
 	// Keyboard controls
-	$(document).bind('keydown', keydownHandler);
-	$(document).bind('keyup', keyupHandler);
-
+	Event.observe(document, 'keydown', keydownHandler);
+	Event.observe(document, 'keyup', keyupHandler);
 	/**
 	 * Helpers
 	 */
@@ -203,12 +217,12 @@ var hashgrid = function(set) {
 			case options.foregroundKey:
 				if (overlayOn) {
 					// Toggle sticky overlay z-index
-					if (overlay.css('z-index') == overlayZForeground) {
-						overlay.css('z-index', overlayZBackground);
+					if (overlay.getStyle('z-index') == overlayZForeground) {
+						overlay.setStyle({ zIndex: overlayZBackground });
 						overlayZState = 'B';
 					}
 					else {
-						overlay.css('z-index', overlayZForeground);
+						overlay.setStyle({ zIndex: overlayZBackground });
 						overlayZState = 'F';
 					}
 					saveState();
@@ -217,10 +231,10 @@ var hashgrid = function(set) {
 			case options.jumpGridsKey:
 				if (overlayOn && (options.numberOfGrids > 1)) {
 					// Cycle through the available grids
-					overlay.removeClass(options.classPrefix + classNumber);
+					overlay.removeClassName(options.classPrefix + classNumber);
 					classNumber++;
 					if (classNumber > options.numberOfGrids) classNumber = 1;
-					overlay.addClass(options.classPrefix + classNumber);
+					overlay.addClassName(options.classPrefix + classNumber);
 					if (/webkit/.test( navigator.userAgent.toLowerCase() )) {
 						forceRepaint();
 					}
@@ -288,3 +302,49 @@ function forceRepaint() {
 		ss.removeRule(ss.rules.length - 1);
 	} catch(e){}
 }
+
+/**
+ * http://stackoverflow.com/questions/833708/how-do-i-get-the-size-of-the-browser-window-using-prototype-js
+ */
+var WindowSize = {
+    width: function()
+    {
+        var myWidth = 0;
+        if (typeof(window.innerWidth) == 'number')
+        {
+            //Non-IE
+            myWidth = window.innerWidth;
+        }
+        else if (document.documentElement && document.documentElement.clientWidth)
+        {
+            //IE 6+ in 'standards compliant mode'
+            myWidth = document.documentElement.clientWidth;
+        }
+        else if (document.body && document.body.clientWidth)
+        {
+            //IE 4 compatible
+            myWidth = document.body.clientWidth;
+        }
+        return myWidth;
+    },
+    height: function()
+    {
+        var myHeight = 0;
+        if (typeof(window.innerHeight) == 'number')
+        {
+            //Non-IE
+            myHeight = window.innerHeight;
+        }
+        else if (document.documentElement && document.documentElement.clientHeight)
+        {
+            //IE 6+ in 'standards compliant mode'
+            myHeight = document.documentElement.clientHeight;
+        }
+        else if (document.body && document.body.clientHeight)
+        {
+            //IE 4 compatible
+            myHeight = document.body.clientHeight;
+        }
+        return myHeight;
+    }
+};
